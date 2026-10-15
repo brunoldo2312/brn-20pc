@@ -1,5 +1,4 @@
-"""
-rendezvous_discovery.py — Fachada de descoberta remota (v2)
+"""rendezvous_discovery.py — Fachada de descoberta remota
 ================================================================
 Decide dinamicamente entre backends de rendezvous:
 
@@ -10,7 +9,7 @@ Decide dinamicamente entre backends de rendezvous:
     Backend 2: No-op
         - Se nada estiver configurado, não faz nada (silencioso)
 
-API compatível com main.py v12.6:
+A API é compatível com main.py v12.5:
 
     rdv = RendezvousDiscovery(
         tcp_port=6001,
@@ -18,17 +17,16 @@ API compatível com main.py v12.6:
         on_peer=lambda ip, port: p2p.add_peer(ip, port),
         running_flag=lambda: not _shutdown.is_set(),
         sign_fn=node_id_priv.sign,   # opcional (não usado no Mongo)
-        blockchain=chain,            # v2: NOVO — usado pelo RendezvousMongo
+        blockchain=chain,            # opcional (usado para anunciar height/work)
     )
     rdv.start()
     ...
     rdv.stop()
 
-v2:
-  [NEW] __init__ aceita `blockchain=None` para compatibilidade com
-        main.py v12.6. Antes, o main.py passava `blockchain=chain` e
-        quebrava com "unexpected keyword argument 'blockchain'".
-  [NEW] Repassa blockchain para RendezvousMongo.
+Env:
+    BRN_RENDEZVOUS_URL       (opcional — se setado, loga)
+    MONGO_USER, MONGO_PASS, MONGO_HOST, MONGO_DB
+        (usados pelo mongo_client para decidir se está configurado)
 
 Requer:
     rendezvous_mongo.py
@@ -40,6 +38,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 from typing import Callable, Optional
 
 
@@ -66,8 +65,8 @@ class RendezvousDiscovery:
         self.node_uuid = str(node_uuid or "")
         self.on_peer = on_peer
         self.running_flag = running_flag
-        self.sign_fn = sign_fn           # não usado por RendezvousMongo
-        self.blockchain = blockchain     # v2: usado por RendezvousMongo
+        self.sign_fn = sign_fn  # não usado por RendezvousMongo (compat com assinaturas antigas)
+        self.blockchain = blockchain
 
         self._impl = None
         self._running = False
@@ -136,7 +135,7 @@ class RendezvousDiscovery:
                 node_uuid=self.node_uuid,
                 on_peer=self.on_peer,
                 running_flag=self.running_flag,
-                blockchain=self.blockchain,   # v2
+                blockchain=self.blockchain,
             )
             self._impl.start()
             self._backend = "mongo"
@@ -176,8 +175,7 @@ class RendezvousDiscovery:
                 "backend":  self._backend,
                 "running":  self._running,
                 "tcp_port": self.tcp_port,
-                "node":     (self.node_uuid[:16] + "..."
-                             if self.node_uuid else ""),
+                "node":     self.node_uuid[:16] + "..." if self.node_uuid else "",
             }
 
     # ============================================================
@@ -200,7 +198,7 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-    print("Testando RendezvousDiscovery v2...")
+    print("Testando RendezvousDiscovery...")
 
     # ---- 1. Sem Mongo configurado: vira no-op ----
     received = []
@@ -211,7 +209,7 @@ if __name__ == "__main__":
         node_uuid="abc" * 21 + "de",
         on_peer=lambda ip, port: received.append((ip, port)),
         running_flag=lambda: not stop_flag[0],
-        blockchain=None,   # v2: aceita esse kwarg
+        blockchain=None,
     )
 
     ok = rdv.start()
@@ -219,19 +217,28 @@ if __name__ == "__main__":
     st = rdv.get_status()
     print(f"  status: {json.dumps(st, ensure_ascii=False)}")
 
-    # ---- 2. Aceita todos os kwargs ----
+    if ok:
+        print("  [info] mongo estava configurado — backend ativo")
+        assert st["backend"] == "mongo"
+    else:
+        print("  [ok] sem mongo → virou no-op (esperado em dev)")
+
+    # ---- 2. Stop funciona ----
+    rdv.stop()
+    print(f"  [ok] stop() — is_active={rdv.is_active()}")
+
+    # ---- 3. Backend name ----
+    print(f"  [info] backend_name = {rdv.backend_name()}")
+
+    # ---- 4. Instanciação com sign_fn (compat) ----
     rdv2 = RendezvousDiscovery(
         tcp_port=6002,
         node_uuid="def" * 21 + "ab",
         on_peer=lambda ip, port: None,
         running_flag=lambda: False,
         sign_fn=lambda data: b"fake_sig",
-        blockchain="fake_chain",
+        blockchain=None,
     )
-    print(f"  [ok] aceita sign_fn + blockchain: backend={rdv2.backend_name()}")
+    print(f"  [ok] instancia com sign_fn: backend={rdv2.backend_name()}")
 
-    # ---- 3. Stop ----
-    rdv.stop()
-    print(f"  [ok] stop() — is_active={rdv.is_active()}")
-
-    print("RendezvousDiscovery v2 OK.")
+    print("RendezvousDiscovery OK.")

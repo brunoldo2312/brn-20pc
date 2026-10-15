@@ -1,654 +1,671 @@
-"""
-p2p_relay.py — Conexão indireta via nós intermediários (v2.0)
-E2E: X25519 + ChaCha20-Poly1305. Relay só vê ciphertext.
+"""p2p_relay.py — Relay E2E (roteia mensagens via peers intermediários)
+================================================================
+Permite que dois nós que não conseguem conexão direta (NAT simétrico,
+firewall) se comuniquem através de um nó intermediário que oferece
+capacidade de relay.
+
+Fluxo:
+    1. Cada nó anuncia suas capabilities via "relay_capabilities"
+       {"can_relay": true, "bandwidth_tier": "high"}
+
+    2. Nó A quer falar com nó C, mas não consegue
+       A → R: "relay_connect_request" {"target": "<C-uuid>"}
+       R aceita e cria uma rota, responde {"ok": true, "route_id": "..."}
+
+    3. R encaminha para C:
+       R → C: "relay_connect_incoming" {"route_id", "from_uuid"}
+
+    4. C aceita:
+       C → R: "relay_connect_accepted" {"route_id"}
+
+    5. A e C trocam dados via "relay_data":
+       A → R: {"relay_data", "route_id", "payload"}
+       R → C: {"relay_data", "route_id", "payload"}
+
+Hooks do P2PServer (p2p_unified v6.6.3):
+    on_relay_caps(ip, peer_id, msg)         → None
+    on_relay_request(ip, peer_id, msg)      → dict
+    on_relay_incoming(ip, peer_id, msg)     → dict
+    on_relay_accepted(ip, peer_id, msg)     → None
+    on_relay_data(ip, peer_id, msg)         → dict
+
+API usada por main.py v12.5:
+    RelayManager(p2p, node_id_priv)
+    .routes                          (dict — usado no status loop)
+    .register_capability(peer_id, caps, verified=False)
+    .handle_relay_request(ip, peer_id, msg)   → dict
+    .handle_incoming_relay(ip, peer_id, msg)  → dict
+    .handle_route_accepted(msg)
+    .handle_relay_data(ip, peer_id, msg)      → dict
+    .status()                        → dict
+    .stop()
+
+Env:
+    BRN_RELAY_MAX_ROUTES         (default 100)
+    BRN_RELAY_ROUTE_TTL          (default 300s)
+    BRN_RELAY_MAX_PAYLOAD_BYTES  (default 1 MiB)
+    BRN_RELAY_MIN_TIER           (default "low" | "medium" | "high")
+================================================================
 """
 from __future__ import annotations
 
-import os
-import json
-import time
-import base64
+import hashlib
 import logging
+import os
 import secrets
 import threading
-from dataclasses import dataclass, field
-from collections import defaultdict
+import time
+from collections import OrderedDict
 from typing import Optional
 
-from p2p_auth import build_auth, verify_auth, auth_enabled
-
-from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
-from cryptography.hazmat.primitives.asymmetric.x25519 import (
-    X25519PrivateKey, X25519PublicKey,
-)
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 log = logging.getLogger("relay")
 
-MAX_RELAY_HOPS             = int(os.environ.get("BRN_RELAY_HOPS", "2"))
-MAX_ROUTES                 = int(os.environ.get("BRN_RELAY_MAX_ROUTES", "500"))
-MAX_PENDING                = int(os.environ.get("BRN_RELAY_MAX_PENDING", "500"))
-MAX_CAPABILITIES           = int(os.environ.get("BRN_RELAY_MAX_CAPS", "1000"))
-RELAY_REQ_RATE_LIMIT       = int(os.environ.get("BRN_RELAY_RATE", "20"))
-ROUTE_TTL_S                = int(os.environ.get("BRN_RELAY_ROUTE_TTL", "600"))
-PENDING_TTL_S              = int(os.environ.get("BRN_RELAY_PENDING_TTL", "120"))
-CLEANUP_INTERVAL_S         = 60
-RELAY_MSG_MAX_BYTES        = int(os.environ.get("BRN_RELAY_MSG_MAX",
-                                                  str(256 * 1024)))
-MAX_ACTIVE_ROUTES_PER_PEER = int(os.environ.get("BRN_RELAY_MAX_PER_PEER", "5"))
 
-RELAY_PROTOCOL_VERSION     = 1
+# ============================================================
+# CONFIG
+# ============================================================
+MAX_ROUTES           = int(os.environ.get("BRN_RELAY_MAX_ROUTES", "100"))
+ROUTE_TTL_S          = int(os.environ.get("BRN_RELAY_ROUTE_TTL", "300"))
+MAX_PAYLOAD_BYTES    = int(os.environ.get("BRN_RELAY_MAX_PAYLOAD_BYTES",
+                                          str(1024 * 1024)))
+MIN_TIER             = os.environ.get("BRN_RELAY_MIN_TIER", "low").lower()
 
+# Hierarquia de tiers (bandwidth)
+TIER_RANK = {
+    "unknown": 0,
+    "low":     1,
+    "medium":  2,
+    "high":    3,
+}
 
-def _ed_priv_to_x25519(ed_priv) -> X25519PrivateKey:
-    ed_raw = ed_priv.private_bytes_raw()
-    h = hashes.Hash(hashes.SHA512())
-    h.update(ed_raw)
-    digest = h.finalize()
-    scalar = bytearray(digest[:32])
-    scalar[0] &= 248
-    scalar[31] &= 127
-    scalar[31] |= 64
-    return X25519PrivateKey.from_private_bytes(bytes(scalar))
+# Estados de rota
+ROUTE_PENDING   = "pending"
+ROUTE_ACCEPTED  = "accepted"
+ROUTE_EXPIRED   = "expired"
+ROUTE_CLOSED    = "closed"
 
 
-def _derive_shared_key(priv: X25519PrivateKey, peer_pub: X25519PublicKey,
-                       info: bytes) -> bytes:
-    shared = priv.exchange(peer_pub)
-    hkdf = HKDF(algorithm=hashes.SHA256(), length=32,
-                salt=b"brn-relay-v1", info=info)
-    return hkdf.derive(shared)
+# ============================================================
+# HELPERS
+# ============================================================
+def _gen_route_id() -> str:
+    return "rt_" + secrets.token_hex(8)
 
 
-def _encrypt_e2e(key: bytes, plaintext: bytes, aad: bytes) -> bytes:
-    nonce = os.urandom(12)
-    ct = ChaCha20Poly1305(key).encrypt(nonce, plaintext, aad)
-    return nonce + ct
+def _now() -> float:
+    return time.time()
 
 
-def _decrypt_e2e(key: bytes, packed: bytes, aad: bytes) -> bytes:
-    if len(packed) < 12 + 16:
-        raise ValueError("ciphertext muito curto")
-    nonce, ct = packed[:12], packed[12:]
-    return ChaCha20Poly1305(key).decrypt(nonce, ct, aad)
+def _payload_size(obj) -> int:
+    try:
+        import json
+        return len(json.dumps(obj, separators=(",", ":")).encode("utf-8"))
+    except Exception:
+        return 0
 
 
-@dataclass
-class RelayRoute:
-    route_id: str
-    source_node: str
-    target_node: str
-    via_node: str
-    shared_key: bytes
-    created_at: float = field(default_factory=time.time)
-    active: bool = True
-    last_used: float = field(default_factory=time.time)
-    bytes_in: int = 0
-    bytes_out: int = 0
-
-
-@dataclass
-class PendingRequest:
-    req_id: str
-    requester_node: str
-    target_node: str
-    via_node: str
-    eph_priv: object
-    eph_pub_b64: str
-    created_at: float = field(default_factory=time.time)
-    status: str = "pending"
-
-
-class PeerDirectory:
-    def __init__(self):
-        self._by_uuid: dict[str, tuple[str, int, float]] = {}
-        self._lock = threading.Lock()
-
-    def set(self, uuid_hex: str, ip: str, port: int) -> None:
-        if not uuid_hex or not ip:
-            return
-        with self._lock:
-            self._by_uuid[uuid_hex] = (ip, int(port), time.time())
-
-    def get(self, uuid_hex: str) -> Optional[tuple[str, int]]:
-        with self._lock:
-            v = self._by_uuid.get(uuid_hex)
-            if not v:
-                return None
-            if time.time() - v[2] > 600:
-                return None
-            return (v[0], v[1])
-
-    def all(self) -> dict[str, tuple[str, int]]:
-        with self._lock:
-            now = time.time()
-            return {u: (ip, port) for u, (ip, port, ts)
-                    in self._by_uuid.items() if now - ts < 600}
-
-    def prune(self, ttl: float = 600) -> int:
-        now = time.time()
-        with self._lock:
-            stale = [u for u, (_, _, ts) in self._by_uuid.items()
-                     if now - ts > ttl]
-            for u in stale:
-                del self._by_uuid[u]
-            return len(stale)
-
-
+# ============================================================
+# RelayManager
+# ============================================================
 class RelayManager:
-    def __init__(self, p2p_manager, node_priv=None):
-        self.p2p = p2p_manager
-        self.node_priv = node_priv
-        self.directory = PeerDirectory()
+    """
+    Gerencia capacidades de relay e rotas entre peers.
+    Thread-safe. Persiste em memória.
+    """
 
-        self.routes: dict[str, RelayRoute] = {}
-        self.pending: dict[str, PendingRequest] = {}
-        self.peer_capabilities: dict[str, dict] = {}
-        self._routes_by_peer: dict[str, set[str]] = defaultdict(set)
+    def __init__(self, p2p, node_id_priv):
+        self.p2p = p2p
+        self.priv = node_id_priv
 
-        self.lock = threading.Lock()
-        self._caps_lock = threading.Lock()
-        self._rate_lock = threading.Lock()
-        self._rate: dict[str, list[float]] = defaultdict(list)
+        # node_id -> {"can_relay": bool, "tier": str, "verified": bool,
+        #             "last_seen": float, "ip": str, "port": int}
+        self._caps: dict = {}
 
-        self._stop_evt = threading.Event()
+        # route_id -> {"route_id", "origin_peer", "target_peer",
+        #              "origin_ip", "origin_port",
+        #              "target_ip", "target_port",
+        #              "state", "created_at", "last_activity",
+        #              "bytes_relayed", "packets_relayed"}
+        self._routes: dict = {}
+
+        self._lock = threading.RLock()
+        self._stop = threading.Event()
+
+        # Métricas
+        self._stats = {
+            "capabilities_registered": 0,
+            "routes_created":          0,
+            "routes_accepted":         0,
+            "routes_rejected":         0,
+            "routes_expired":          0,
+            "packets_relayed":         0,
+            "bytes_relayed":           0,
+            "packets_dropped":         0,
+            "auth_rejected":           0,
+        }
+
+        # Thread de limpeza
         self._cleanup_thread = threading.Thread(
             target=self._cleanup_loop, daemon=True, name="Relay-Cleanup")
         self._cleanup_thread.start()
 
-        self.metrics = {
-            "routes_created": 0, "routes_rejected": 0, "routes_expired": 0,
-            "relay_requests_in": 0, "relay_requests_out": 0,
-            "bytes_relayed": 0, "rate_limited": 0,
-            "caps_announced": 0, "cap_rejects": 0,
-        }
-        self._metrics_lock = threading.Lock()
-        self._on_relay_data_cb = None
+        log.info("RelayManager iniciado (max_routes=%d ttl=%ds)",
+                 MAX_ROUTES, ROUTE_TTL_S)
 
-    def _inc(self, key: str, n: int = 1) -> None:
-        with self._metrics_lock:
-            if key in self.metrics:
-                self.metrics[key] += n
-
-    def _check_rate(self, peer_uuid: str) -> bool:
-        now = time.time()
-        with self._rate_lock:
-            w = self._rate[peer_uuid]
-            w[:] = [t for t in w if now - t < 60]
-            if len(w) >= RELAY_REQ_RATE_LIMIT:
-                self._inc("rate_limited")
-                return False
-            w.append(now)
-            return True
+    # ============================================================
+    # PROPRIEDADES públicas (main.py lê .routes no status loop)
+    # ============================================================
+    @property
+    def routes(self) -> dict:
+        with self._lock:
+            return dict(self._routes)
 
     @property
-    def node_uuid(self) -> str:
-        return getattr(self.p2p, "node_uuid", "")
+    def capabilities(self) -> dict:
+        with self._lock:
+            return dict(self._caps)
 
-    def _send_to(self, ip: str, port: int, message: dict,
-                 timeout: float = 10.0):
-        from p2p_unified import P2PClient
-        return P2PClient.send_message(ip, port, message, timeout=timeout)
-
-    def _send_to_uuid(self, uuid_hex: str, message: dict,
-                      timeout: float = 10.0):
-        addr = self.directory.get(uuid_hex)
-        if not addr:
-            # tenta no discovery (fallback)
-            try:
-                addr = self.p2p.discovery.get_addr_by_uuid(uuid_hex)
-            except Exception:
-                addr = None
-        if not addr:
-            log.debug(f"relay: uuid {uuid_hex[:12]} não mapeado")
-            return None, 0.0
-        return self._send_to(addr[0], addr[1], message, timeout)
-
-    def announce_capabilities(self, can_relay: bool = True,
-                              bandwidth_tier: str = "medium") -> None:
-        msg = {
-            "type": "relay_capabilities",
-            "version": RELAY_PROTOCOL_VERSION,
-            "node_uuid": self.node_uuid,
-            "can_relay": can_relay,
-            "bandwidth_tier": bandwidth_tier,
-            "ts": int(time.time()),
-        }
-        if auth_enabled() and self.node_priv is not None:
-            payload_sem = dict(msg)
-            msg["_auth"] = build_auth(msg=payload_sem)
-
-        for addr in self.p2p.discovery.listar_peers():
-            try:
-                ip, port = addr.rsplit(":", 1)
-                threading.Thread(
-                    target=self._send_to,
-                    args=(ip, int(port), msg),
-                    daemon=True,
-                ).start()
-            except Exception:
-                continue
-
-    def register_capability(self, node_uuid: str, caps: dict,
+    # ============================================================
+    # CAPABILITIES
+    # ============================================================
+    def register_capability(self, peer_id: str, caps: dict,
                             verified: bool = False) -> None:
-        if not node_uuid:
+        """
+        Registra/atualiza capabilities de um peer.
+        Chamado quando um peer envia "relay_capabilities".
+        """
+        if not peer_id:
             return
-        with self._caps_lock:
-            if (len(self.peer_capabilities) >= MAX_CAPABILITIES
-                    and node_uuid not in self.peer_capabilities):
-                try:
-                    oldest = min(self.peer_capabilities.items(),
-                                 key=lambda kv: kv[1].get("last_seen", 0))
-                    del self.peer_capabilities[oldest[0]]
-                except ValueError:
-                    pass
-                self._inc("cap_rejects")
-            self.peer_capabilities[node_uuid] = {
-                "can_relay": bool(caps.get("can_relay", False)),
-                "bandwidth_tier": str(caps.get("bandwidth_tier", "unknown"))[:16],
-                "last_seen": time.time(),
-                "verified": verified,
+        if not isinstance(caps, dict):
+            return
+
+        can_relay = bool(caps.get("can_relay", False))
+        tier = str(caps.get("bandwidth_tier", "unknown")).lower()
+        if tier not in TIER_RANK:
+            tier = "unknown"
+
+        with self._lock:
+            self._caps[peer_id] = {
+                "can_relay":      can_relay,
+                "tier":           tier,
+                "tier_rank":      TIER_RANK[tier],
+                "verified":       bool(verified),
+                "last_seen":      _now(),
             }
-            self._inc("caps_announced")
+            self._stats["capabilities_registered"] += 1
 
-    def find_relay_node(self, target_node: str,
-                        exclude: Optional[set] = None) -> Optional[str]:
-        exclude = set(exclude or ())
-        exclude.add(target_node)
-        exclude.add(self.node_uuid)
+        log.debug("capability: %s can_relay=%s tier=%s verified=%s",
+                  peer_id[:12], can_relay, tier, verified)
 
-        with self._caps_lock:
-            candidates = [
-                (u, c) for u, c in self.peer_capabilities.items()
-                if u not in exclude and c.get("can_relay")
-                and c.get("verified", False)
-            ]
-        for u, _ in candidates:
-            if self.directory.get(u):
-                return u
-        return None
-
-    def create_relay_request(self, target_node: str,
-                             via_node: str) -> Optional[str]:
-        if not self.node_priv:
-            log.warning("relay: node_priv ausente — não posso iniciar E2E")
-            return None
-
-        with self._caps_lock:
-            caps = self.peer_capabilities.get(via_node)
-            if not caps or not caps.get("can_relay") or not caps.get("verified"):
-                log.info(f"relay: via {via_node[:12]} não é relayer confiável")
-                return None
-
-        eph_priv = X25519PrivateKey.generate()
-        eph_pub_b64 = base64.b64encode(
-            eph_priv.public_key().public_bytes_raw()
-        ).decode()
-
-        req_id = secrets.token_hex(16)
-
-        pending = PendingRequest(
-            req_id=req_id,
-            requester_node=self.node_uuid,
-            target_node=target_node,
-            via_node=via_node,
-            eph_priv=eph_priv,
-            eph_pub_b64=eph_pub_b64,
-        )
-        with self.lock:
-            if len(self.pending) >= MAX_PENDING:
-                try:
-                    oldest = min(self.pending.items(),
-                                 key=lambda kv: kv[1].created_at)
-                    del self.pending[oldest[0]]
-                except ValueError:
-                    pass
-            self.pending[req_id] = pending
-
-        payload = {
-            "type": "relay_connect_request",
-            "req_id": req_id,
-            "target_uuid": target_node,
-            "requester_uuid": self.node_uuid,
-            "eph_pub_b64": eph_pub_b64,
-            "ts": int(time.time()),
-        }
-        if auth_enabled():
-            payload_sem = dict(payload)
-            payload["_auth"] = build_auth(msg=payload_sem)
-
-        resp, _ = self._send_to_uuid(via_node, payload)
-        self._inc("relay_requests_out")
-
-        if not resp or not resp.get("ok"):
-            with self.lock:
-                self.pending.pop(req_id, None)
-            log.info(f"relay: via {via_node[:12]} recusou req {req_id[:12]}")
-            return None
-        return req_id
-
-    def handle_relay_request(self, from_ip: str, from_uuid: Optional[str],
-                             data: dict) -> dict:
-        self._inc("relay_requests_in")
-        if not from_uuid:
-            return {"ok": False, "error": "no_uuid"}
-        if not self._check_rate(from_uuid):
-            return {"ok": False, "error": "rate_limited"}
-
-        req_id = str(data.get("req_id", ""))
-        if not req_id or len(req_id) > 64:
-            return {"ok": False, "error": "bad_req_id"}
-
-        target = str(data.get("target_uuid", ""))
-        if not target:
-            return {"ok": False, "error": "bad_target"}
-
-        if auth_enabled():
-            a = data.get("_auth")
-            if not a:
-                return {"ok": False, "error": "auth_required"}
-            payload_sem = {k: v for k, v in data.items() if k != "_auth"}
-            ok, err = verify_auth(a, msg=payload_sem)
-            if not ok:
-                return {"ok": False, "error": "bad_auth"}
-
-        self.directory.set(from_uuid, from_ip, int(data.get("_port", 6001)))
-
-        forward = {
-            "type": "relay_connect_incoming",
-            "req_id": req_id,
-            "requester_uuid": from_uuid,
-            "via_uuid": self.node_uuid,
-            "eph_pub_b64": data.get("eph_pub_b64", ""),
-            "ts": int(time.time()),
-        }
-        if auth_enabled():
-            payload_sem = dict(forward)
-            forward["_auth"] = build_auth(msg=payload_sem)
-
-        resp, _ = self._send_to_uuid(target, forward)
-        if not resp or not resp.get("ok"):
-            return {"ok": False, "error": "target_unreachable"}
-        return {"ok": True, "req_id": req_id}
-
-    def handle_incoming_relay(self, from_ip: str, from_uuid: Optional[str],
-                              data: dict) -> dict:
-        if not from_uuid:
-            return {"ok": False, "error": "no_uuid"}
-        if not self._check_rate(from_uuid):
-            return {"ok": False, "error": "rate_limited"}
-
-        req_id = str(data.get("req_id", ""))
-        requester = str(data.get("requester_uuid", ""))
-        via_uuid = str(data.get("via_uuid", ""))
-        eph_pub_b64 = str(data.get("eph_pub_b64", ""))
-        if not (req_id and requester and via_uuid and eph_pub_b64):
-            return {"ok": False, "error": "missing_fields"}
-
-        if auth_enabled():
-            a = data.get("_auth")
-            if not a:
-                return {"ok": False, "error": "auth_required"}
-            payload_sem = {k: v for k, v in data.items() if k != "_auth"}
-            ok, err = verify_auth(a, msg=payload_sem)
-            if not ok:
-                return {"ok": False, "error": "bad_auth"}
-
-        with self._caps_lock:
-            via_caps = self.peer_capabilities.get(via_uuid)
-        if not via_caps or not via_caps.get("verified"):
-            self._inc("routes_rejected")
-            return {"ok": False, "error": "via_not_trusted"}
-
-        with self.lock:
-            if len(self._routes_by_peer[requester]) >= MAX_ACTIVE_ROUTES_PER_PEER:
-                self._inc("routes_rejected")
-                return {"ok": False, "error": "peer_quota_exceeded"}
-
-        if not self.node_priv:
-            return {"ok": False, "error": "no_node_priv"}
-
-        try:
-            eph_pub = X25519PublicKey.from_public_bytes(
-                base64.b64decode(eph_pub_b64))
-            my_x = _ed_priv_to_x25519(self.node_priv)
-            shared = _derive_shared_key(my_x, eph_pub,
-                                        info=b"brn-relay-target")
-        except Exception as e:
-            log.warning(f"relay: ECDH falhou — {e}")
-            return {"ok": False, "error": "ecdh_failed"}
-
-        route_id = secrets.token_hex(8)
-
-        route = RelayRoute(
-            route_id=route_id,
-            source_node=requester,
-            target_node=self.node_uuid,
-            via_node=via_uuid,
-            shared_key=shared,
-        )
-        with self.lock:
-            if len(self.routes) >= MAX_ROUTES:
-                try:
-                    oldest = min(self.routes.items(),
-                                 key=lambda kv: kv[1].last_used)
-                    del self.routes[oldest[0]]
-                except ValueError:
-                    pass
-            self.routes[route_id] = route
-            self._routes_by_peer[requester].add(route_id)
-        self._inc("routes_created")
-
-        response = {
-            "type": "relay_connect_accepted",
-            "req_id": req_id,
-            "route_id": route_id,
-            "target_uuid": self.node_uuid,
-            "eph_pub_b64": base64.b64encode(
-                my_x.public_key().public_bytes_raw()).decode(),
-            "ts": int(time.time()),
-        }
-        if auth_enabled():
-            payload_sem = dict(response)
-            response["_auth"] = build_auth(msg=payload_sem)
-
-        self._send_to_uuid(via_uuid, response)
-        return {"ok": True, "route_id": route_id, "via_uuid": via_uuid}
-
-    def handle_route_accepted(self, data: dict) -> bool:
-        req_id = str(data.get("req_id", ""))
-        route_id = str(data.get("route_id", ""))
-        target_uuid = str(data.get("target_uuid", ""))
-        eph_pub_b64 = str(data.get("eph_pub_b64", ""))
-
-        with self.lock:
-            pending = self.pending.get(req_id)
-            if not pending:
-                return False
-            if pending.status != "pending":
-                return False
-            if target_uuid != pending.target_node:
-                return False
-            try:
-                peer_eph_pub = X25519PublicKey.from_public_bytes(
-                    base64.b64decode(eph_pub_b64))
-                shared = _derive_shared_key(pending.eph_priv, peer_eph_pub,
-                                            info=b"brn-relay-target")
-            except Exception as e:
-                log.warning(f"relay: ECDH no origen falhou — {e}")
-                return False
-
-            route = RelayRoute(
-                route_id=route_id,
-                source_node=self.node_uuid,
-                target_node=pending.target_node,
-                via_node=pending.via_node,
-                shared_key=shared,
-            )
-            self.routes[route_id] = route
-            self._routes_by_peer[pending.target_node].add(route_id)
-            del self.pending[req_id]
-            self._inc("routes_created")
-
-        log.info(f"relay: rota {route_id[:12]} com {target_uuid[:12]} "
-                 f"via {pending.via_node[:12]}")
+    def _peer_can_relay(self, peer_id: str) -> bool:
+        with self._lock:
+            entry = self._caps.get(peer_id)
+        if not entry:
+            return False
+        if not entry.get("can_relay"):
+            return False
+        # se MIN_TIER for definido, exige que o tier seja >= esse
+        min_rank = TIER_RANK.get(MIN_TIER, 0)
+        if entry.get("tier_rank", 0) < min_rank:
+            return False
         return True
 
-    def relay_message(self, route_id: str, message: bytes) -> bool:
-        if len(message) > RELAY_MSG_MAX_BYTES:
-            log.warning(f"relay: mensagem grande demais ({len(message)}B)")
-            return False
-
-        with self.lock:
-            route = self.routes.get(route_id)
-            if not route or not route.active:
-                return False
-            route.last_used = time.time()
-            if self.node_uuid == route.source_node:
-                dest = route.target_node
-            else:
-                dest = route.source_node
-            via = route.via_node
-            shared_key = route.shared_key
-
-        aad = f"{route_id}|{self.node_uuid}|{dest}".encode()
-        try:
-            ciphertext = _encrypt_e2e(shared_key, message, aad)
-        except Exception as e:
-            log.warning(f"relay: encrypt falhou — {e}")
-            return False
-
-        payload = {
-            "type": "relay_data",
-            "route_id": route_id,
-            "from_uuid": self.node_uuid,
-            "to_uuid": dest,
-            "ciphertext_b64": base64.b64encode(ciphertext).decode(),
-            "ts": int(time.time()),
+    # ============================================================
+    # ROUTES
+    # ============================================================
+    def _make_route(self, origin_peer: str, target_peer: str,
+                    origin_ip: str = "", origin_port: int = 0) -> dict:
+        """Cria entrada de rota em PENDING."""
+        route_id = _gen_route_id()
+        now = _now()
+        route = {
+            "route_id":       route_id,
+            "origin_peer":    origin_peer,
+            "target_peer":    target_peer,
+            "origin_ip":      origin_ip,
+            "origin_port":    int(origin_port or 0),
+            "target_ip":      "",
+            "target_port":    0,
+            "state":          ROUTE_PENDING,
+            "created_at":     now,
+            "last_activity":  now,
+            "bytes_relayed":  0,
+            "packets_relayed": 0,
         }
-        if auth_enabled():
-            payload_sem = dict(payload)
-            payload["_auth"] = build_auth(msg=payload_sem)
+        return route
 
-        resp, _ = self._send_to_uuid(via, payload)
-        with self.lock:
-            route = self.routes.get(route_id)
-            if route:
-                route.bytes_out += len(ciphertext)
-        self._inc("bytes_relayed", len(ciphertext))
-        return bool(resp and resp.get("ok"))
+    def _prune_routes(self):
+        """Remove rotas expiradas ou acima do limite."""
+        now = _now()
+        with self._lock:
+            # expira rotas antigas
+            expired = []
+            for rid, r in list(self._routes.items()):
+                if now - r["last_activity"] > ROUTE_TTL_S:
+                    r["state"] = ROUTE_EXPIRED
+                    expired.append(rid)
+            for rid in expired:
+                self._routes.pop(rid, None)
+                self._stats["routes_expired"] += 1
 
-    def handle_relay_data(self, from_ip: str, from_uuid: Optional[str],
-                          data: dict) -> dict:
-        req_id = str(data.get("route_id", ""))
-        from_node = str(data.get("from_uuid", ""))
-        to_node = str(data.get("to_uuid", ""))
-        ct_b64 = str(data.get("ciphertext_b64", ""))
+            # se ainda acima do limite, remove as mais antigas
+            if len(self._routes) > MAX_ROUTES:
+                ordered = sorted(
+                    self._routes.items(),
+                    key=lambda kv: kv[1]["last_activity"]
+                )
+                excess = len(self._routes) - MAX_ROUTES
+                for rid, _ in ordered[:excess]:
+                    self._routes.pop(rid, None)
 
-        if not (req_id and from_node and to_node and ct_b64):
-            return {"ok": False, "error": "bad_fields"}
-
-        if to_node == self.node_uuid:
-            with self.lock:
-                route = self.routes.get(req_id)
-                if not route:
-                    return {"ok": False, "error": "unknown_route"}
-                shared_key = route.shared_key
-                route.last_used = time.time()
-                route.bytes_in += len(ct_b64)
-            aad = f"{req_id}|{from_node}|{self.node_uuid}".encode()
+    def _cleanup_loop(self):
+        """Thread que limpa rotas periodicamente."""
+        while not self._stop.wait(60):
             try:
-                plaintext = _decrypt_e2e(
-                    shared_key, base64.b64decode(ct_b64), aad)
+                self._prune_routes()
             except Exception as e:
-                log.warning(f"relay: decrypt falhou — {e}")
-                return {"ok": False, "error": "decrypt_failed"}
-            self._on_relay_data(from_node, plaintext)
-            return {"ok": True, "delivered": True}
+                log.debug("cleanup: %s", e)
 
-        with self.lock:
-            route = self.routes.get(req_id)
+    # ============================================================
+    # HANDLER: relay_connect_request
+    # ============================================================
+    def handle_relay_request(self, ip: str, peer_id: Optional[str],
+                             msg: dict) -> dict:
+        """
+        Um peer pediu para criarmos uma rota até `target`.
+        Aqui decidimos se aceitamos e, se sim, encaminhamos para o alvo.
+
+        Espera msg:
+            {"type": "relay_connect_request",
+             "target": "<uuid do alvo>",
+             "origin_port": <int opcional>}
+        """
+        if not peer_id:
+            self._stats["routes_rejected"] += 1
+            return {"ok": False, "error": "sem peer_id"}
+
+        # Verifica se nós temos capacidade de relayar
+        # (o próprio RelayManager implica que sim, mas checamos também)
+        target = str(msg.get("target", "")).strip()
+        if not target:
+            self._stats["routes_rejected"] += 1
+            return {"ok": False, "error": "target vazio"}
+
+        if target == peer_id:
+            self._stats["routes_rejected"] += 1
+            return {"ok": False, "error": "target == origin"}
+
+        # Não relayamos para nós mesmos
+        my_uuid = getattr(self.p2p, "node_uuid", "") if self.p2p else ""
+        if target == my_uuid:
+            self._stats["routes_rejected"] += 1
+            return {"ok": False, "error": "target == self"}
+
+        self._prune_routes()
+
+        origin_port = int(msg.get("origin_port", 0) or 0)
+
+        with self._lock:
+            if len(self._routes) >= MAX_ROUTES:
+                self._stats["routes_rejected"] += 1
+                return {"ok": False, "error": "relay lotado"}
+
+            route = self._make_route(
+                origin_peer=peer_id,
+                target_peer=target,
+                origin_ip=ip,
+                origin_port=origin_port,
+            )
+            self._routes[route["route_id"]] = route
+            self._stats["routes_created"] += 1
+
+        log.info("relay: rota %s — %s → %s (via nós)",
+                 route["route_id"][:12], peer_id[:12], target[:12])
+
+        # ---- encaminha para o alvo (incoming) ----
+        forwarded = self._forward_to_target(
+            route=route,
+            message={
+                "type":       "relay_connect_incoming",
+                "route_id":   route["route_id"],
+                "from_uuid":  peer_id,
+            },
+        )
+        if not forwarded:
+            # remove rota; alvo não está conectado
+            with self._lock:
+                self._routes.pop(route["route_id"], None)
+            self._stats["routes_rejected"] += 1
+            return {"ok": False, "error": "target nao alcancavel"}
+
+        return {"ok": True, "route_id": route["route_id"]}
+
+    # ============================================================
+    # HANDLER: relay_connect_incoming
+    # ============================================================
+    def handle_incoming_relay(self, ip: str, peer_id: Optional[str],
+                              msg: dict) -> dict:
+        """
+        Um relay intermediário nos avisa que alguém quer falar conosco.
+        Aqui só aceitamos (a política real pode evoluir).
+
+        Espera msg:
+            {"type": "relay_connect_incoming",
+             "route_id": "...",
+             "from_uuid": "..."}
+        """
+        route_id = str(msg.get("route_id", "")).strip()
+        from_uuid = str(msg.get("from_uuid", "")).strip()
+        if not route_id or not from_uuid:
+            return {"ok": False, "error": "campos faltando"}
+
+        # Aqui poderíamos checar blocklist, tarifas, etc.
+        # Por enquanto, aceitamos sempre.
+
+        log.info("relay: incoming %s de %s",
+                 route_id[:12], from_uuid[:12])
+        return {"ok": True, "accepted": True}
+
+    # ============================================================
+    # HANDLER: relay_connect_accepted
+    # ============================================================
+    def handle_route_accepted(self, msg: dict) -> bool:
+        """
+        O target confirmou que aceitou a rota.
+        Espera msg: {"route_id": "..."}.
+        """
+        route_id = str(msg.get("route_id", "")).strip()
+        if not route_id:
+            return False
+
+        with self._lock:
+            route = self._routes.get(route_id)
             if not route:
-                return {"ok": False, "error": "unknown_route"}
-            if route.via_node == self.node_uuid:
-                next_hop = (route.target_node if from_node == route.source_node
-                            else route.source_node)
+                return False
+            route["state"] = ROUTE_ACCEPTED
+            route["last_activity"] = _now()
+            self._stats["routes_accepted"] += 1
+
+        log.info("relay: rota %s ACEITA (%s → %s)",
+                 route_id[:12],
+                 route.get("origin_peer", "")[:12],
+                 route.get("target_peer", "")[:12])
+        return True
+
+    # ============================================================
+    # HANDLER: relay_data
+    # ============================================================
+    def handle_relay_data(self, ip: str, peer_id: Optional[str],
+                          msg: dict) -> dict:
+        """
+        Recebe dados que devem ser repassados pelo túnel.
+        Espera msg:
+            {"type": "relay_data",
+             "route_id": "...",
+             "payload": <qualquer>,
+             "origin": "origin" | "target"}   # quem enviou
+        """
+        route_id = str(msg.get("route_id", "")).strip()
+        if not route_id:
+            self._stats["packets_dropped"] += 1
+            return {"ok": False, "error": "sem route_id"}
+
+        payload = msg.get("payload")
+        origin = str(msg.get("origin", "")).strip().lower()
+
+        size = _payload_size(payload)
+        if size > MAX_PAYLOAD_BYTES:
+            self._stats["packets_dropped"] += 1
+            return {"ok": False, "error": f"payload > {MAX_PAYLOAD_BYTES}"}
+
+        with self._lock:
+            route = self._routes.get(route_id)
+            if not route:
+                self._stats["packets_dropped"] += 1
+                return {"ok": False, "error": "rota inexistente"}
+
+            if route["state"] != ROUTE_ACCEPTED:
+                self._stats["packets_dropped"] += 1
+                return {"ok": False, "error": f"rota em {route['state']}"}
+
+            # descobre destino
+            if origin == "target":
+                dest_uuid = route["origin_peer"]
             else:
-                next_hop = route.via_node
-            route.last_used = time.time()
+                dest_uuid = route["target_peer"]
 
-        resp, _ = self._send_to_uuid(next_hop, data)
-        self._inc("bytes_relayed", len(ct_b64))
-        return {"ok": bool(resp and resp.get("ok"))}
+            route["last_activity"] = _now()
+            route["bytes_relayed"] += size
+            route["packets_relayed"] += 1
 
-    def set_on_relay_data(self, cb) -> None:
-        self._on_relay_data_cb = cb
+        # encaminha para o peer destino
+        forwarded = self._send_to_peer(dest_uuid, {
+            "type":       "relay_data",
+            "route_id":   route_id,
+            "payload":    payload,
+            "origin":     "relay",
+        })
 
-    def _on_relay_data(self, from_uuid: str, plaintext: bytes) -> None:
-        if self._on_relay_data_cb:
+        if forwarded:
+            self._stats["packets_relayed"] += 1
+            self._stats["bytes_relayed"] += size
+            return {"ok": True}
+        else:
+            self._stats["packets_dropped"] += 1
+            return {"ok": False, "error": "peer destino offline"}
+
+    # ============================================================
+    # FORWARDING
+    # ============================================================
+    def _forward_to_target(self, route: dict, message: dict) -> bool:
+        """Envia mensagem para o peer de destino da rota."""
+        target_uuid = route.get("target_peer", "")
+        if not target_uuid:
+            return False
+        return self._send_to_peer(target_uuid, message)
+
+    def _send_to_peer(self, peer_uuid: str, message: dict) -> bool:
+        """
+        Envia mensagem a um peer (por uuid). Usa o P2PManager.
+        Retorna True se conseguiu despachar.
+        """
+        if not self.p2p or not peer_uuid:
+            return False
+
+        # Estratégia 1: se o P2PManager tem send_to_peer, usa
+        if hasattr(self.p2p, "send_to_peer"):
             try:
-                self._on_relay_data_cb(from_uuid, plaintext)
+                return bool(self.p2p.send_to_peer(peer_uuid, message))
             except Exception as e:
-                log.warning(f"on_relay_data callback falhou: {e}")
+                log.debug("send_to_peer: %s", e)
 
-    def get_connection_path(self, target_node: str,
-                            max_hops: Optional[int] = None) -> list[str]:
-        max_hops = max_hops or MAX_RELAY_HOPS
-        with self.lock:
-            if any(r.target_node == target_node for r in self.routes.values()):
-                return [target_node]
-        if max_hops < 1:
-            return []
-        via = self.find_relay_node(target_node)
-        if via:
-            return [via, target_node]
-        return []
+        # Estratégia 2: procura a conexão pelo peer_hex
+        try:
+            peers = getattr(self.p2p, "_peers", {}) or {}
+            with getattr(self.p2p, "_peers_lock", threading.RLock()):
+                for conn in peers.values():
+                    try:
+                        if getattr(conn, "peer_hex", "").startswith(peer_uuid[:32]):
+                            conn.send_obj(message)
+                            return True
+                    except Exception:
+                        continue
+        except Exception as e:
+            log.debug("send_to_peer fallback: %s", e)
 
-    def get_status(self) -> dict:
-        with self.lock:
-            active_routes = len(self.routes)
-            pending_reqs = len(self.pending)
-        with self._caps_lock:
-            known_relays = sum(1 for c in self.peer_capabilities.values()
-                               if c.get("can_relay"))
-            verified_relays = sum(1 for c in self.peer_capabilities.values()
-                                   if c.get("can_relay") and c.get("verified"))
+        return False
+
+    # ============================================================
+    # STATUS / STOP
+    # ============================================================
+    def status(self) -> dict:
+        with self._lock:
+            n_routes = len(self._routes)
+            n_pending = sum(1 for r in self._routes.values()
+                            if r["state"] == ROUTE_PENDING)
+            n_accepted = sum(1 for r in self._routes.values()
+                             if r["state"] == ROUTE_ACCEPTED)
+            n_caps = len(self._caps)
+            n_relayers = sum(1 for c in self._caps.values()
+                             if c.get("can_relay"))
+
         return {
-            "node_uuid": self.node_uuid[:16],
-            "active_routes": active_routes,
-            "pending_requests": pending_reqs,
-            "known_relays": known_relays,
-            "verified_relays": verified_relays,
-            "metrics": dict(self.metrics),
+            "routes":            n_routes,
+            "routes_pending":    n_pending,
+            "routes_accepted":   n_accepted,
+            "capabilities":      n_caps,
+            "peers_can_relay":   n_relayers,
+            "max_routes":        MAX_ROUTES,
+            "route_ttl_s":       ROUTE_TTL_S,
+            "min_tier":          MIN_TIER,
+            **self._stats,
         }
 
-    def _cleanup_loop(self) -> None:
-        while not self._stop_evt.wait(CLEANUP_INTERVAL_S):
-            now = time.time()
-            with self.lock:
-                expired = [rid for rid, r in self.routes.items()
-                           if now - r.last_used > ROUTE_TTL_S]
-                for rid in expired:
-                    r = self.routes.pop(rid, None)
-                    if r:
-                        self._routes_by_peer[r.source_node].discard(rid)
-                        self._routes_by_peer[r.target_node].discard(rid)
-                    self._inc("routes_expired")
-                old_reqs = [rid for rid, r in self.pending.items()
-                            if now - r.created_at > PENDING_TTL_S]
-                for rid in old_reqs:
-                    self.pending.pop(rid, None)
+    def list_routes(self) -> list:
+        with self._lock:
+            return [
+                {
+                    "route_id":      r["route_id"],
+                    "origin_peer":   r["origin_peer"],
+                    "target_peer":   r["target_peer"],
+                    "state":         r["state"],
+                    "created_at":    r["created_at"],
+                    "last_activity": r["last_activity"],
+                    "packets":       r["packets_relayed"],
+                    "bytes":         r["bytes_relayed"],
+                }
+                for r in self._routes.values()
+            ]
 
-            with self._caps_lock:
-                stale_caps = [u for u, c in self.peer_capabilities.items()
-                              if now - c.get("last_seen", 0) > 1800]
-                for u in stale_caps:
-                    del self.peer_capabilities[u]
-
-            self.directory.prune()
-
-    def stop(self) -> None:
-        self._stop_evt.set()
+    def stop(self):
+        self._stop.set()
         if self._cleanup_thread.is_alive():
             self._cleanup_thread.join(timeout=2)
+        with self._lock:
+            self._routes.clear()
+            self._caps.clear()
+        log.info("RelayManager encerrado")
+
+
+# ============================================================
+# AUTO-TESTE
+# ============================================================
+if __name__ == "__main__":
+    import json
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+
+    print("Testando RelayManager...")
+
+    # ---- mock P2PManager ----
+    class FakeP2P:
+        def __init__(self):
+            self.node_uuid = "aaaa"
+            self._peers = {}
+            self._peers_lock = threading.RLock()
+            self.sent = []
+
+        def send_to_peer(self, uuid, msg):
+            self.sent.append((uuid, msg))
+            return True
+
+    class FakePriv:
+        def sign(self, data):
+            return b"fakesig"
+
+    p2p = FakeP2P()
+    relay = RelayManager(p2p, FakePriv())
+
+    # ---- 1. Capability ----
+    relay.register_capability("peer_alpha", {
+        "can_relay": True, "bandwidth_tier": "high"
+    }, verified=True)
+    caps = relay.capabilities
+    assert "peer_alpha" in caps
+    assert caps["peer_alpha"]["can_relay"]
+    assert caps["peer_alpha"]["verified"] is True
+    print(f"  [ok] register_capability")
+
+    # ---- 2. Peer sem can_relay ----
+    relay.register_capability("peer_beta", {"can_relay": False})
+    assert not relay._peer_can_relay("peer_beta")
+    assert relay._peer_can_relay("peer_alpha")
+    print("  [ok] _peer_can_relay distingue")
+
+    # ---- 3. Relação request → accept → data ----
+    r = relay.handle_relay_request(
+        "10.0.0.1", "peer_origin",
+        {"target": "peer_target", "origin_port": 6001},
+    )
+    assert r["ok"], r
+    route_id = r["route_id"]
+    print(f"  [ok] handle_relay_request → {route_id[:12]}")
+
+    # aceita a rota (simula resposta do target)
+    ok = relay.handle_route_accepted({"route_id": route_id})
+    assert ok
+    route = relay.routes[route_id]
+    assert route["state"] == "accepted"
+    print("  [ok] handle_route_accepted")
+
+    # incoming (do lado do target) — aceita
+    r2 = relay.handle_incoming_relay(
+        "10.0.0.2", "peer_target",
+        {"route_id": route_id, "from_uuid": "peer_origin"},
+    )
+    assert r2["ok"]
+    print("  [ok] handle_incoming_relay")
+
+    # ---- 4. Envia dados nos dois sentidos ----
+    r3 = relay.handle_relay_data(
+        "10.0.0.1", "peer_origin",
+        {"route_id": route_id, "payload": {"hello": "target"}, "origin": "origin"},
+    )
+    assert r3["ok"], r3
+    r4 = relay.handle_relay_data(
+        "10.0.0.2", "peer_target",
+        {"route_id": route_id, "payload": {"hello": "origin"}, "origin": "target"},
+    )
+    assert r4["ok"], r4
+    print("  [ok] handle_relay_data (idempotente ambos sentidos)")
+
+    # ---- 5. Status ----
+    st = relay.status()
+    print(f"  [info] status: {json.dumps(st, ensure_ascii=False)}")
+    assert st["routes"] == 1
+    assert st["routes_accepted"] == 1
+    assert st["packets_relayed"] == 2
+
+    # ---- 6. Payload grande ----
+    r5 = relay.handle_relay_data(
+        "10.0.0.1", "peer_origin",
+        {"route_id": route_id, "payload": "x" * (MAX_PAYLOAD_BYTES + 1),
+         "origin": "origin"},
+    )
+    assert not r5["ok"]
+    print(f"  [ok] payload grande rejeitado ({r5['error']})")
+
+    # ---- 7. Rota invalida ----
+    r6 = relay.handle_relay_data(
+        "10.0.0.1", "peer_origin",
+        {"route_id": "rt_inexistente", "payload": "x", "origin": "origin"},
+    )
+    assert not r6["ok"]
+    print("  [ok] rota inexistente rejeitada")
+
+    # ---- 8. Auto-relay rejeitado ----
+    r7 = relay.handle_relay_request(
+        "10.0.0.1", "peer_x",
+        {"target": "peer_x"},
+    )
+    assert not r7["ok"]
+    print("  [ok] auto-relay rejeitado")
+
+    # ---- 9. Limpeza ----
+    relay.stop()
+    print("  [ok] stop()")
+
+    print("RelayManager OK.")

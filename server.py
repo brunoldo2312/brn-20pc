@@ -1,10 +1,10 @@
-"""
+﻿"""
 server.py — Backend HTTP do nó BRN (v9.5)
 ================================================================
 v9.5:
   [NEW] set_sync_manager() + /api/sync/status
   [FIX] /api/sync-info usa contar_peers(apenas_ativos=False)
-v9.4:
+v9.4 (Modo 2 — mineração aberta):
   [CHANGE] /api/mine, /api/miner/* — públicos
   [KEEP]   /api/faucet — mantém @_admin_required
 ================================================================
@@ -111,14 +111,13 @@ CHAIN = _LazyChain()
 
 
 # ============================================================
-# SYNC MANAGER INJETÁVEL (v9.5)
+# SYNC MANAGER INJETÁVEL
 # ============================================================
 _SYNC_MANAGER = None
 _SYNC_LOCK = threading.Lock()
 
 
 def set_sync_manager(sync) -> None:
-    """Injeta o ChainSyncManager no server (chamado pelo main.py)."""
     global _SYNC_MANAGER
     with _SYNC_LOCK:
         _SYNC_MANAGER = sync
@@ -126,7 +125,6 @@ def set_sync_manager(sync) -> None:
 
 
 def _get_sync_manager():
-    """Retorna o sync manager injetado, ou None."""
     return _SYNC_MANAGER
 
 
@@ -872,8 +870,6 @@ def miner_status():
             "hashrate": st.get("hashrate", 0.0),
             "hashes_done": st.get("hashes_done", 0),
             "eta_seconds": st.get("eta_seconds"),
-            "fork_aborts": st.get("fork_aborts", 0),
-            "fork_in_progress": st.get("fork_in_progress", False),
             "height": _get_chain().db.height(),
             "difficulty": _get_chain().current_difficulty(),
             "last_error": st.get("last_error", ""),
@@ -1152,7 +1148,7 @@ def sync_info():
 
 
 # ============================================================
-# Sync Status detalhado (v9.5) — NOVO
+# Sync Status detalhado
 # ============================================================
 @app.route("/api/sync/status", methods=["GET"])
 def sync_status_v7():

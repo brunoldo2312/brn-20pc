@@ -1,23 +1,45 @@
-"""
-main.py — Entrypoint unificado do nó BRN (v12.6)
+"""main.py — Entrypoint unificado do nó BRN (v12.5)
 ================================================================
-v12.6:
-  [FIX] Wallet.create() → Wallet()  (wallet.py v8 não tem .create())
-  [FIX] server.set_sync_manager() chamado no boot (para /api/sync/status)
-  [FIX] bc._on_tx_submitted = p2p.broadcast_tx (gossip de transações)
-  [FIX] chain._fork_signal = sync._fork_signal (usado pelo miner_loop v6.3)
-  [FIX] chain._on_block_mined = p2p.broadcast_block (já existia, mantido)
-v12.5:
-  [FIX] auto_genesis=not is_origin → auto_genesis=is_origin
-v12.4:
-  [FIX] blockchain usa is_origin (não args.client_mode)
-v12.3:
-  [NEW] ChainSyncManager instanciado no boot
-  [NEW] _setup_sync() + _list_p2p_peers()
-  [NEW] --no-sync
-v12:
-  [NEW] _HARDCODED_DEFAULTS
-  [NEW] Tailscale automático
+Amarra tudo:
+  1. Config (brn_config.Config) + env
+  2. Senha do nó
+  3. Identidade Ed25519 (node_identity.enc)
+  4. Blockchain (blockchain.py v9.1.7)
+  5. P2P (p2p_unified.P2PManager)
+  6. Sync (sync_manager.ChainSyncManager)
+  7. Rendezvous (rendezvous_discovery.RendezvousDiscovery)
+  8. Relay (p2p_relay.RelayManager)
+  9. L2 (btc_watcher.BTCWatcher)
+ 10. HTTP server (server.py v9.5)
+ 11. Explorer (explorer.py)
+ 12. Miner (miner_loop.get_miner)
+ 13. Loop principal até Ctrl+C
+
+Argumentos:
+    --status               Mostra diagnóstico
+    --headless             Sem GUI
+    --read-only            Nó não assina blocos
+    --version              Mostra versão
+    --check-update         Consulta GitHub
+    --config PATH          Config.json (default config.json)
+    --log-level LEVEL      INFO/DEBUG/WARNING
+    --log-file PATH
+    --password-file PATH   Arquivo com senha (uma linha)
+    --rotate-node-id       Nova identidade Ed25519
+    --client-mode          Não cria genesis local
+    --discover             Diagnóstico de descoberta
+    --l2                   Habilita BTC watcher
+    --l2-stats             Mostra stats do L2 e sai
+    --mine                 Inicia miner
+    --no-p2p               Desabilita P2P
+    --no-sync              Não sincroniza
+    --no-tailscale         Pula Tailscale
+    --relay / --no-relay   Força relay on/off
+    --verify-only          Só verifica cadeia
+    --skip-verify          Pula verificação no boot
+
+Prioridade de env:
+    Shell / .bat  >  brn_network.env  >  _HARDCODED_DEFAULTS
 ================================================================
 """
 from __future__ import annotations
@@ -35,7 +57,7 @@ from pathlib import Path
 
 
 # ============================================================
-# BASE_DIR
+# BASE_DIR — antes de qualquer import do projeto
 # ============================================================
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -60,28 +82,36 @@ def _bootstrap_env() -> None:
 
 
 # ============================================================
-# DEFAULTS
+# DEFAULTS HARDCODED (menor prioridade)
 # ============================================================
 _HARDCODED_DEFAULTS = {
     "BRN_NODE_PASSWORD":       "senha-no-temp-123",
     "BRN_NETWORK_SECRET":      "9226edea8ba62bc1c6ae36883c0536c95b4c85642195465d6c4d9456abef20f9",
     "BRN_BOOTSTRAP_PEERS":     "",
+
     "BRN_WEB_PASS":            "senha-temp-123",
     "BRN_WALLET_SESSION_PASS": "senha-forte-da-carteira-2026",
+
     "BRN_IS_ORIGIN":           "0",
+
     "BRN_HTTPS":               "0",
     "BRN_AUDIT_ENABLED":       "1",
     "BRN_AUDIT_LOG":           "audit.log",
+
     "BRN_P2P_AUTH":            "optional",
     "BRN_P2P_AUTH_WINDOW":     "30",
     "BRN_P2P_NONCE_CACHE":     "10000",
+
     "BRN_SKIP_VERIFY":         "0",
     "BRN_VERIFY_STRICT":       "0",
+
     "BRN_TRACKER":             "",
+
     "MONGO_USER":              "",
     "MONGO_PASS":              "",
     "MONGO_HOST":              "",
     "MONGO_DB":                "brn_analytics",
+
     "TS_AUTH_KEY":             "",
     "TS_API_KEY":              "",
     "TS_TAILNET":              "",
@@ -105,7 +135,7 @@ if _applied:
 
 
 # ============================================================
-# IMPORTS
+# IMPORTS APÓS BOOTSTRAP
 # ============================================================
 from brn_config import Config
 from brn_logger import setup_logger, get_logger
@@ -169,7 +199,7 @@ def _check_required_modules() -> list:
         "brn_config", "brn_logger", "version",
         "blockchain", "db", "crypto", "wallet", "bech32",
         "secure_store", "chain_validator", "checkpoints",
-        "p2p_auth", "p2p_secure", "p2p_unified",
+        "p2p_auth", "p2p_cipher", "p2p_secure", "p2p_unified",
         "discovery_v2", "miner_loop",
     ]
     missing = []
@@ -182,7 +212,7 @@ def _check_required_modules() -> list:
 
 
 # ============================================================
-# L2 (opcional)
+# L2 — fallback que NUNCA quebra o nó
 # ============================================================
 L2_ENABLED = False
 btc_config = None
@@ -227,7 +257,7 @@ def _close_audit() -> None:
 
 
 # ============================================================
-# TAILSCALE
+# TAILSCALE AUTO-SETUP
 # ============================================================
 def _setup_tailscale_auto(log) -> bool:
     auth_key = os.environ.get("TS_AUTH_KEY", "").strip()
@@ -237,7 +267,7 @@ def _setup_tailscale_auto(log) -> bool:
 
     setup_path = BASE_DIR / "brn_tailscale_setup.py"
     if not setup_path.exists():
-        log.warning("Tailscale: brn_tailscale_setup.py não encontrado")
+        log.warning("Tailscale: brn_tailscale_setup.py não encontrado — pulando")
         return True
 
     log.info("Tailscale: configurando automaticamente...")
@@ -249,11 +279,14 @@ def _setup_tailscale_auto(log) -> bool:
         )
         if r.returncode == 0:
             log.info("Tailscale: OK")
+            for line in (r.stdout or "").splitlines()[-6:]:
+                if line.strip():
+                    log.info("  " + line)
             return True
         log.warning("Tailscale: falhou (código " + str(r.returncode) + ")")
         return False
     except subprocess.TimeoutExpired:
-        log.warning("Tailscale: timeout de 180s")
+        log.warning("Tailscale: timeout de 180s — continuando sem VPN")
         return False
     except Exception as e:
         log.warning("Tailscale: erro — " + str(e))
@@ -264,7 +297,7 @@ def _setup_tailscale_auto(log) -> bool:
 # ARGS
 # ============================================================
 def parse_args():
-    p = argparse.ArgumentParser(prog="main.py", description="BRN Node v12.6")
+    p = argparse.ArgumentParser(prog="main.py", description="BRN Node v12")
     p.add_argument("--status", action="store_true")
     p.add_argument("--headless", action="store_true")
     p.add_argument("--read-only", action="store_true")
@@ -332,12 +365,12 @@ def load_or_create_node_identity(password: str, rotate: bool = False):
         {"sk": sk.private_bytes_raw().hex(), "pub": pub_hex},
         password, str(NODE_ID_PATH),
     )
-    log.info("Identidade nova criada: " + pub_hex[:16] + "...")
+    log.info("Identidade nova criada: " + pub_hex[:16] + "... (" + str(NODE_ID_PATH) + ")")
     return sk, pub_hex
 
 
 # ============================================================
-# PAPEL
+# PAPEL DO NÓ
 # ============================================================
 def _read_role() -> str:
     try:
@@ -382,6 +415,8 @@ def _verify_chain(chain) -> str:
         return VERIFY_ERROR
 
     dt = time.time() - t0
+
+    # Compat: chain_validator pode retornar VerifyResult (novo) ou bool (antigo)
     valid = getattr(r, "valid", None)
     if valid is None:
         valid = bool(r)
@@ -407,7 +442,7 @@ def _verify_chain(chain) -> str:
 
 
 # ============================================================
-# UPDATE CHECK
+# VERSION / UPDATE
 # ============================================================
 def _parse_version(s):
     try:
@@ -446,9 +481,16 @@ def do_status(cfg):
     print(" Expl.  : " + EXPLORER_HOST + ":" + str(cfg["explorer_port"]))
     print(" P2P    : " + str(cfg["p2p_port"]))
     print()
-    print(" HTTPS       : " + ("SIM" if os.environ.get("BRN_HTTPS") == "1" else "não"))
-    print(" Audit log   : " + ("SIM" if os.environ.get("BRN_AUDIT_ENABLED") == "1" else "não"))
-    print(" Tailscale   : " + (os.environ.get("TS_TAILNET", "").strip() or "(desabilitado)"))
+
+    https = os.environ.get("BRN_HTTPS", "0") == "1"
+    audit = os.environ.get("BRN_AUDIT_ENABLED", "1") == "1"
+    rdv   = os.environ.get("BRN_RENDEZVOUS_URL", "").strip()
+    ts    = os.environ.get("TS_TAILNET", "").strip()
+
+    print(" HTTPS       : " + ("SIM" if https else "não"))
+    print(" Audit log   : " + ("SIM" if audit else "não"))
+    print(" Rendezvous  : " + (rdv if rdv else "(não configurado)"))
+    print(" Tailscale   : " + (ts if ts else "(desabilitado)"))
     print(" Auto-mine   : " + ("SIM" if AUTO_MINE else "não"))
     print()
 
@@ -460,8 +502,11 @@ def do_status(cfg):
     print()
 
     if _l2_disponivel():
-        print(" L2 Enabled  : SIM")
-        print(" BTC Addr    : " + str(getattr(btc_config, "BTC_RECEIVE_ADDRESS", "?")))
+        try:
+            print(" L2 Enabled  : SIM")
+            print(" BTC Addr    : " + str(getattr(btc_config, "BTC_RECEIVE_ADDRESS", "?")))
+        except Exception as e:
+            print(" L2 Enabled  : SIM (erro: " + str(e) + ")")
     else:
         print(" L2 Enabled  : NÃO")
 
@@ -541,12 +586,11 @@ def _do_discover_diagnostic(cfg):
 # ============================================================
 # HTTP / EXPLORER
 # ============================================================
-def _init_http_server(chain, log, sync=None):
+def _init_http_server(chain, log):
     try:
         from server import (
             app as http_app,
             set_chain,
-            set_sync_manager,
             auto_registrar_carteira_atual,
         )
     except Exception as e:
@@ -558,14 +602,6 @@ def _init_http_server(chain, log, sync=None):
     except Exception as e:
         log.error("Falha set_chain: " + str(e))
         return None
-
-    # v12.6: injeta sync_manager
-    if sync is not None:
-        try:
-            set_sync_manager(sync)
-            log.info("sync_manager injetado no server")
-        except Exception as e:
-            log.warning("set_sync_manager falhou: " + str(e))
 
     try:
         reg = auto_registrar_carteira_atual()
@@ -588,8 +624,9 @@ def run_http(app_instance):
             from security import ensure_self_signed_cert
             cert, key = ensure_self_signed_cert()
             ssl_ctx = (cert, key)
+            log.info("HTTPS https://" + WEB_HOST + ":" + str(port))
         except Exception as e:
-            log.warning("cert HTTPS falhou: " + str(e))
+            log.warning("Falha ao gerar cert HTTPS: " + str(e) + ". Caindo para HTTP.")
             ssl_ctx = None
     if ssl_ctx is None:
         log.info("HTTP http://" + WEB_HOST + ":" + str(port))
@@ -644,9 +681,9 @@ def run_status_loop(chain, p2p, l2_manager=None, sync=None):
                     peer_count = st.get("peer_count", 0)
                     relay = getattr(p2p, "relay", None)
                     if relay:
-                        relay_routes = len(getattr(relay, "routes", {}))
-                except Exception:
-                    pass
+                        relay_routes = len(relay.routes)
+                except Exception as e:
+                    log.warning("p2p.get_status: " + str(e))
 
             mempool_n = len(chain.db.all_mempool(limit=1000))
             utxos_n = chain.db.count_utxos()
@@ -666,8 +703,6 @@ def run_status_loop(chain, p2p, l2_manager=None, sync=None):
                             + " (" + str(s.get("progress", 0)) + "%)")
                     if s.get("active_peer"):
                         msg += " via " + str(s["active_peer"])[:12]
-                    if s.get("forking"):
-                        msg += " FORK=yes"
                     if s.get("last_error"):
                         msg += " err=" + str(s["last_error"])[:40]
                 except Exception:
@@ -931,8 +966,7 @@ def _graceful_shutdown(log) -> None:
 
     try:
         from wallet import WalletManager
-        if hasattr(WalletManager, "lock_session"):
-            WalletManager.lock_session()
+        WalletManager.lock_session()
     except Exception:
         pass
 
@@ -980,10 +1014,12 @@ def main():
              + " | Modo: " + ("ORIGEM" if is_origin else "CLIENTE")
              + " | L2: " + l2_mode)
     log.info(" HTTPS: " + ("ON" if os.environ.get("BRN_HTTPS") == "1" else "off")
+             + " | Rendezvous: " + (os.environ.get("BRN_RENDEZVOUS_URL", "—") or "—")
              + " | Auto-mine: " + ("ON" if AUTO_MINE else "off"))
+    log.info(" Tailscale: " + (os.environ.get("TS_TAILNET", "").strip() or "desabilitado"))
     log.info("=" * 60)
 
-    # ---- Comandos que saem sozinhos ----
+    # ---- comandos que saem sozinhos ----
     if args.version:
         print(VERSION)
         return 0
@@ -1008,7 +1044,7 @@ def main():
             print("Erro: " + str(e))
         return 0
 
-    # ---- Módulos obrigatórios ----
+    # ---- módulos obrigatórios ----
     missing = _check_required_modules()
     if missing:
         log.error("Módulos obrigatórios faltando: " + ", ".join(missing))
@@ -1020,7 +1056,7 @@ def main():
     else:
         log.info("Tailscale: pulado por --no-tailscale")
 
-    # ---- Identidade ----
+    # ---- identidade ----
     node_password = _resolve_password(args)
     try:
         node_id_priv, node_id_pub = load_or_create_node_identity(
@@ -1029,12 +1065,12 @@ def main():
         raise
     log.info("Nó ID: " + node_id_pub)
 
-    # ---- Blockchain ----
+    # ---- blockchain ----
     from blockchain import Blockchain
     chain = Blockchain(cfg["db_path"], auto_genesis=is_origin)
     log.info("Altura atual: " + str(chain.db.height()))
 
-    # ---- Checkpoints ----
+    # ---- checkpoints ----
     try:
         from checkpoints import load_checkpoints
         from blockchain import set_checkpoints, set_checkpoint_priv
@@ -1048,7 +1084,7 @@ def main():
     except Exception as e:
         log.warning("Checkpoints desativados: " + str(e))
 
-    # ---- Verify ----
+    # ---- verify ----
     if args.verify_only:
         st = _verify_chain(chain)
         try:
@@ -1061,7 +1097,7 @@ def main():
         strict = os.environ.get("BRN_VERIFY_STRICT", "0") == "1"
         st = _verify_chain(chain)
         if st == VERIFY_INVALID and strict:
-            log.error("Abortando boot: cadeia inválida")
+            log.error("Abortando boot: cadeia inválida (BRN_VERIFY_STRICT=1)")
             try:
                 chain.db.close()
             except Exception:
@@ -1080,9 +1116,6 @@ def main():
                              enable_upnp=cfg["upnp"])
             p2p.start()
             _register_service("p2p", p2p)
-            # v12.6: hooks
-            chain._on_block_mined = p2p.broadcast_block
-            chain._on_tx_submitted = p2p.broadcast_tx
             log.info("P2P iniciado")
         except Exception as e:
             log.error("Falha ao iniciar P2P: " + str(e))
@@ -1106,17 +1139,12 @@ def main():
         sync = _setup_sync(chain, p2p, log)
         if sync:
             _register_service("sync", sync)
-            # v12.6: expõe fork_signal ao miner_loop via chain
-            try:
-                chain._fork_signal = sync._fork_signal
-                log.info("fork_signal ligado ao chain")
-            except Exception as e:
-                log.warning("fork_signal setup falhou: " + str(e))
     else:
         log.info("Sync: pulado por --no-sync")
 
     # ---- Rendezvous ----
     rdv = None
+    rdv_url = os.environ.get("BRN_RENDEZVOUS_URL", "").strip()
     if p2p is not None:
         try:
             from rendezvous_discovery import RendezvousDiscovery
@@ -1162,11 +1190,12 @@ def main():
                 log.info("L2 Watcher RPC iniciado em " + btc_addr)
         except Exception as e:
             log.warning("Falha ao iniciar BTCWatcher: " + str(e))
+            btc_watcher = None
     elif args.l2:
         log.warning("--l2 solicitado, mas L2 não disponível. Ignorando.")
 
     # ---- HTTP ----
-    http_app = _init_http_server(chain, log, sync=sync)
+    http_app = _init_http_server(chain, log)
     if http_app is not None:
         threading.Thread(
             target=_thread_wrap("HTTP", lambda: run_http(http_app)),
@@ -1198,8 +1227,7 @@ def main():
                 mw = None
 
             if mw is None:
-                # v12.6: usar Wallet() em vez de Wallet.create()
-                mw = Wallet()
+                mw = Wallet.create()
                 try:
                     if hasattr(mw, "to_dict"):
                         save_wallet(mw.to_dict(), node_password,
@@ -1238,18 +1266,23 @@ def main():
                 break
             time.sleep(1)
 
+    # ---- AUDIT ----
     _audit("node_start", {
-        "mode":     "origin" if is_origin else "client",
-        "l2":       bool(args.l2 and l2_ativo),
-        "mine":     bool(args.mine or AUTO_MINE),
-        "height":   chain.db.height(),
-        "node_id":  node_id_pub[:16],
-        "sync":     bool(sync),
+        "mode":       "origin" if is_origin else "client",
+        "l2":         bool(args.l2 and l2_ativo),
+        "mine":       bool(args.mine or AUTO_MINE),
+        "https":      os.environ.get("BRN_HTTPS") == "1",
+        "height":     chain.db.height(),
+        "node_id":    node_id_pub[:16],
+        "rendezvous": bool(rdv and rdv.is_active()),
+        "relay":      bool(relay),
+        "sync":       bool(sync),
+        "tailscale":  bool(os.environ.get("TS_TAILNET", "").strip()),
     })
 
     log.info("Nó pronto. Ctrl+C para encerrar.")
 
-    # ---- Loop principal ----
+    # ---- UI / loop principal ----
     try:
         if not cfg["headless"]:
             run_wallet_main_thread()
@@ -1259,7 +1292,7 @@ def main():
     except KeyboardInterrupt:
         pass
 
-    # ---- Shutdown ----
+    # ---- shutdown ----
     log.info("Encerrando...")
     _shutdown.set()
     _graceful_shutdown(log)

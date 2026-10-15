@@ -1,5 +1,5 @@
 """
-miner_loop.py — Loop de mineracao do BRN (v6.2)
+miner_loop.py — Loop de mineracao do BRN (v6.3)
 ================================================================
 API publica:
     get_miner(chain) -> Miner    (singleton)
@@ -7,6 +7,10 @@ API publica:
     Miner.stop()
     Miner.status() -> dict
 
+v6.3:
+  [NEW] _should_continue() verifica chain._fork_signal
+        Se o ChainSyncManager detectar fork, o miner aborta o bloco
+        atual e espera o reorg terminar.
 v6.2:
   [FIX] _ler_carteira_aberta usa secure_store.load_current_wallet
         (current_wallet.enc) com fallback para current_wallet.json
@@ -39,6 +43,9 @@ MINER_AUTO          = os.environ.get("BRN_MINER_AUTO", "1") == "1"
 BASE_DIR                 = Path(__file__).resolve().parent
 CURRENT_WALLET_ENC_FILE  = str(BASE_DIR / "current_wallet.enc")
 CURRENT_WALLET_FILE      = str(BASE_DIR / "current_wallet.json")
+
+# Quanto tempo esperar entre checagens do fork signal (em segundos)
+FORK_POLL_INTERVAL = float(os.environ.get("BRN_FORK_POLL_INTERVAL", "0.5"))
 
 _MINER_INSTANCE = None
 _MINER_LOCK = threading.Lock()
@@ -122,7 +129,13 @@ class Miner:
         self.last_error = ""
         self.last_height = None
         self.started_at = 0.0
+        # v6.3: contadores para debug
+        self.fork_aborts = 0
+        self.last_fork_at = 0.0
 
+    # ============================================================
+    # CONTROLE
+    # ============================================================
     def start(self, address, pubkey_hex=""):
         if self.running:
             return False, "ja rodando"
@@ -142,10 +155,13 @@ class Miner:
         self.last_error = ""
         self.last_height = None
         self.started_at = time.time()
+        self.fork_aborts = 0
+        self.last_fork_at = 0.0
         self._stop_evt.clear()
         self.running = True
 
-        self._thread = threading.Thread(target=self._loop, daemon=True, name="Miner")
+        self._thread = threading.Thread(target=self._loop, daemon=True,
+                                         name="Miner")
         self._thread.start()
         _log(f"Miner iniciado | addr={address[:16]}... | pub={pubkey_hex[:16]}...")
         return True, "iniciado"
@@ -158,12 +174,18 @@ class Miner:
         _log(f"Miner parado (total={self.blocks_mined})")
         return True, "parado"
 
+    # ============================================================
+    # STATUS
+    # ============================================================
     def status(self):
         uptime = 0
         if self.started_at and self.running:
             uptime = int(time.time() - self.started_at)
         elif self.started_at and not self.running:
             uptime = int(time.time() - self.started_at) if self.blocks_mined else 0
+
+        fork_sig = getattr(self.chain, "_fork_signal", None)
+        forking = bool(fork_sig and fork_sig.is_set())
 
         return {
             "running": self.running,
@@ -176,11 +198,44 @@ class Miner:
             "count": self.blocks_mined,
             "last_height": self.last_height,
             "uptime": uptime,
+            # v6.3
+            "fork_aborts": self.fork_aborts,
+            "last_fork_ago_s": (int(time.time() - self.last_fork_at)
+                                if self.last_fork_at else None),
+            "fork_in_progress": forking,
         }
 
+    # ============================================================
+    # v6.3: SHOULD CONTINUE
+    # ============================================================
+    def _should_continue(self) -> bool:
+        """
+        Retorna False se:
+          - o miner foi parado (stop_evt)
+          - o ChainSyncManager detectou fork (_fork_signal)
+
+        Se detectar fork, registra o abort e loga.
+        """
+        if self._stop_evt.is_set():
+            return False
+
+        fork_sig = getattr(self.chain, "_fork_signal", None)
+        if fork_sig is not None and fork_sig.is_set():
+            self.fork_aborts += 1
+            self.last_fork_at = time.time()
+            _log(f"[FORK] abortando bloco atual — reorg em andamento "
+                 f"(aborts={self.fork_aborts})")
+            return False
+
+        return True
+
+    # ============================================================
+    # LOOP
+    # ============================================================
     def _loop(self):
         while not self._stop_evt.is_set():
             try:
+                # Espera genesis se DB vazio
                 if self.chain.db.height() < 0:
                     _log("Aguardando genesis (DB vazio)...")
                     if self._stop_evt.wait(timeout=5):
@@ -192,19 +247,52 @@ class Miner:
                     self.running = False
                     return
 
+                # v6.3: antes de começar um bloco, checa se há fork
+                fork_sig = getattr(self.chain, "_fork_signal", None)
+                if fork_sig is not None and fork_sig.is_set():
+                    # espera o reorg terminar (com timeout de segurança)
+                    _log("[FORK] aguardando reorg terminar...")
+                    waited = 0.0
+                    while (fork_sig.is_set() and waited < 60.0
+                           and not self._stop_evt.is_set()):
+                        if self._stop_evt.wait(FORK_POLL_INTERVAL):
+                            break
+                        waited += FORK_POLL_INTERVAL
+                    if self._stop_evt.is_set():
+                        break
+                    if fork_sig.is_set():
+                        _log("[FORK] timeout de 60s aguardando reorg — "
+                             "retomando mineração mesmo assim")
+                    else:
+                        _log("[FORK] reorg concluído — retomando mineração")
+                    continue
+
+                # Mina o próximo bloco (interrompível)
                 block = self.chain.mine_block_interruptible(
                     self.address,
                     self.pubkey,
-                    should_continue=lambda: not self._stop_evt.is_set(),
+                    should_continue=self._should_continue,
                 )
 
                 if block is None:
-                    break
+                    # Interrompido por stop_evt OU por fork signal
+                    if self._stop_evt.is_set():
+                        break
+                    # Foi fork — volta ao topo do loop para esperar reorg
+                    continue
 
                 self.blocks_mined += 1
                 h = block.get("height")
                 self.last_height = h
                 _log(f"OK Bloco #{h} minerado (total={self.blocks_mined})")
+
+                # Broadcast via P2P (se disponível)
+                try:
+                    cb = getattr(self.chain, "_on_block_mined", None)
+                    if callable(cb):
+                        cb(block)
+                except Exception as e:
+                    _log(f"broadcast_block falhou: {e}")
 
             except ValueError as e:
                 self.last_error = str(e)
@@ -222,6 +310,9 @@ class Miner:
         _log("Miner loop encerrado")
 
 
+# ============================================================
+# AUTO-START
+# ============================================================
 def loop_mineracao(chain, intervalo=None):
     """Compat com chamadas antigas."""
     if not MINER_AUTO:

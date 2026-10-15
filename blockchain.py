@@ -1,12 +1,11 @@
 """blockchain.py — Núcleo da Blockchain BRN
-Versão: 9.1.7-reorg-minerMT | Data: 14/10/2026
+Versão: 9.1.7-reorg-minerC | Data: 14/10/2026
 ================================================================
-v9.1.7-reorg-minerMT:
-  [NEW] _pow_search_c() detecta se brn_miner.so tem função MT
-        (brn_pow_search_mt) e usa multi-thread se disponível.
-  [NEW] _pow_search_c() cai para single-thread C se MT indisponível.
-  [NEW] _pow_search() cai para Python puro se C indisponível.
-  [KEEP] Todo o resto inalterado do v9.1.7.
+v9.1.7-reorg-minerC:
+  [NEW] _pow_search() tenta brn_miner.so (C) antes do Python puro
+  [NEW] _pow_search_c() divide a busca em chunks de 500k hashes
+        para permitir interrupção (should_continue)
+  [KEEP] Todo o resto do v9.1.7-reorg inalterado
 ================================================================
 """
 from __future__ import annotations
@@ -50,7 +49,7 @@ AUTH_TAG_START_HEIGHT = 6000
 CHECKPOINT_INTERVAL = 1000
 
 # Tamanho do chunk na busca C (hashes por chamada antes de checar
-# should_continue). Com MT, o total é dividido entre as threads.
+# should_continue). 500k a ~3M h/s = ~0.17s por chunk.
 _C_CHUNK_HASHES = 500_000
 
 # ============================================================
@@ -236,42 +235,22 @@ def signing_hash(tx: dict) -> bytes:
 
 
 # ============================================================
-# HOT LOOP PoW — C MT → C single → Python
+# HOT LOOP PoW — tenta C, senão Python
 # ============================================================
 def _pow_search_c(prev_hash, merkle, ts, diff,
                   nonce_start, should_continue, progress_cb):
-    """
-    PoW via biblioteca C. Usa multi-thread se disponível.
-    Fatiado em chunks para permitir interrupção.
-    """
+    """PoW via biblioteca C, fatiado em chunks interrompíveis."""
+    from brn_miner import pow_search as c_pow
+
     prefix = f"{prev_hash}{merkle}{ts}"
     diff_str = str(diff)
 
     nonce = nonce_start
     total_hashes = 0
 
-    # Detecta se MT está disponível (uma vez por chamada)
-    try:
-        from brn_miner import pow_search_mt, has_mt
-        use_mt = has_mt()
-    except Exception:
-        use_mt = False
-
     while True:
-        if use_mt:
-            result = pow_search_mt(
-                prefix, diff_str, int(diff),
-                nonce_start=nonce,
-                max_iters=_C_CHUNK_HASHES,
-            )
-        else:
-            from brn_miner import pow_search as c_pow
-            result = c_pow(
-                prefix, diff_str, int(diff),
-                nonce_start=nonce,
-                max_iters=_C_CHUNK_HASHES,
-            )
-
+        result = c_pow(prefix, diff_str, int(diff),
+                       nonce_start=nonce, max_iters=_C_CHUNK_HASHES)
         if result is None:
             return None, None, total_hashes
 
@@ -295,7 +274,7 @@ def _pow_search_c(prev_hash, merkle, ts, diff,
 
 def _pow_search_python(prev_hash, merkle, ts, diff, nonce_start=0,
                        should_continue=None, progress_cb=None):
-    """Fallback Python puro."""
+    """Fallback Python puro (idêntico ao original)."""
     prefix = f"{prev_hash}{merkle}{ts}".encode()
     diff_bytes = str(diff).encode()
     target_int = int("0" * int(diff) + "f" * (64 - int(diff)), 16)
@@ -324,12 +303,9 @@ def _pow_search_python(prev_hash, merkle, ts, diff, nonce_start=0,
 def _pow_search(prev_hash, merkle, ts, diff, nonce_start=0,
                 should_continue=None, progress_cb=None):
     """
-    Busca PoW. Ordem de preferência:
-      1. C multi-thread (brn_miner.so com MT)
-      2. C single-thread (brn_miner.so sem MT)
-      3. Python puro (fallback)
+    Busca PoW. Tenta C primeiro; se indisponível, usa Python.
     """
-    # ---------- C (MT ou single) ----------
+    # ---------- C ----------
     try:
         from brn_miner import is_available
         if is_available():
