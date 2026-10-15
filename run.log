@@ -1,0 +1,375 @@
+[boot] defaults aplicados: 5 variáveis
+[L2] Módulos BTC carregados OK
+[90m00:17:21[0m [96m[INFO ][0m ============================================================
+[90m00:17:21[0m [96m[INFO ][0m  BRN Node v13.1.0 (2026-10-13)
+[90m00:17:21[0m [96m[INFO ][0m  Config: config.json + env | Modo: CLIENTE | L2: off
+[90m00:17:21[0m [96m[INFO ][0m  HTTPS: off | Rendezvous:  | Auto-mine: off
+[90m00:17:21[0m [96m[INFO ][0m  All miners: 0 | Min difficulty: 6
+[90m00:17:21[0m [96m[INFO ][0m ============================================================
+chain_validator.py plugado em Blockchain
+[90m00:17:21[0m [96m[INFO ][0m Tailscale: desabilitado (TS_AUTH_KEY vazia)
+[90m00:17:21[0m [96m[INFO ][0m Nó ID: e3c8aa3a4531cb22893baba5ff2b2a4b03490989e546a9ed77c0f94e314b5ac3
+[90m00:17:21[0m [96m[INFO ][0m Altura atual: -1
+[90m00:17:21[0m [96m[INFO ][0m Checkpoints: 0 carregados (só valida)
+[90m00:17:21[0m [96m[INFO ][0m Verificando integridade da cadeia...
+[90m00:17:21[0m [91m[ERROR][0m CADEIA INVÁLIDA (1 erros)
+[90m00:17:21[0m [91m[ERROR][0m   - Cadeia vazia (nenhum bloco).
+[90m00:17:21[0m [96m[INFO ][0m P2P iniciado
+[90m00:17:21[0m [96m[INFO ][0m Callback on_block_mined ligado ao P2P
+[90m00:17:21[0m [96m[INFO ][0m Relay E2E pronto
+[90m00:17:21[0m [96m[INFO ][0m Sync: 0 peer(s) registrados inicialmente
+[90m00:17:21[0m [96m[INFO ][0m Sync iniciado (full mode, batch=50)
+[90m00:17:21[0m [96m[INFO ][0m RendezvousMongo ativo (backend=mongo)
+[90m00:17:21[0m [96m[INFO ][0m L2Manager carregado
+[90m00:17:22[0m [96m[INFO ][0m auto-registro pubkey: já registrado: brn1xwqacmrwvmhy...
+[90m00:17:22[0m [93m[WARNING][0m Waitress não instalado — usando Flask dev server
+[90m00:17:22[0m [93m[WARNING][0m Para produção: pip install waitress
+[90m00:17:22[0m [96m[INFO ][0m HTTP (dev) http://0.0.0.0:5000
+[90m00:17:22[0m [96m[INFO ][0m Aguardando genesis (timeout 120s)...
+[90m00:17:22[0m [96m[INFO ][0m Explorer (dev) http://0.0.0.0:8080
+ * Serving Flask app 'server'
+ * Debug mode: off
+ * Serving Flask app 'explorer'
+ * Debug mode: off
+2026-10-14 00:17:22,299 [INFO] werkzeug: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.0.19:5000
+2026-10-14 00:17:22,299 [INFO] werkzeug: [33mPress CTRL+C to quit[0m
+2026-10-14 00:17:22,300 [INFO] werkzeug: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8080
+ * Running on http://192.168.0.19:8080
+2026-10-14 00:17:22,300 [INFO] werkzeug: [33mPress CTRL+C to quit[0m
+2026-10-14 00:17:22,364 [INFO] rendezvous_mongo: RendezvousMongo ativo (intervalo=120s ttl=600s)
+[90m00:17:24[0m [96m[INFO ][0m Nó pronto. Ctrl+C para encerrar.
+2026-10-14 00:17:24,462 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:24] "GET /health HTTP/1.1" 200 -
+
+(main.py:60226): Gdk-CRITICAL **: 00:17:24.820: gdk_wayland_window_set_dbus_properties_libgtk_only: assertion 'GDK_IS_WAYLAND_WINDOW (window)' failed
+
+(main.py:60226): Gdk-CRITICAL **: 00:17:24.868: gdk_wayland_window_set_dbus_properties_libgtk_only: assertion 'GDK_IS_WAYLAND_WINDOW (window)' failed
+2026-10-14 00:17:26,588 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:26] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:17:30,561 [WARNING] p2p: [Sync] 100.84.11.48:6001: fatal — bloco #1519 fora de sequência
+2026-10-14 00:17:32,358 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:32] "GET /api/minhas-txs/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:17:32,371 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:32] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:17:38,388 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:38] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:17:38,578 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:38] "GET /api/sync-info HTTP/1.1" 200 -
+[Miner] Modulo carregado: /home/bruno/Músicas/dipim/brn-atualiza-main/miner_loop.py
+2026-10-14 00:17:38,587 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:38] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:17:41,597 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:41] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:17:44,603 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:44] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:17:44,607 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:44] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:17:47,598 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:47] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:17:48,596 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:48] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:17:50,600 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:50] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:17:50,604 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:50] "GET /api/miner/status HTTP/1.1" 200 -
+[90m00:17:52[0m [96m[INFO ][0m Altura=1518 Peers=3 Relay=0 Mempool=0 UTXOs=1519 Sync=full/1518→3055 (49.69%) via 100.84.11.48 L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:17:53,599 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:53] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:17:56,600 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:56] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:17:56,602 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:56] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:17:58,607 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:58] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:17:58,614 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:58] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:17:59,602 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:17:59] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:02,363 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:02] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:18:02,597 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:02] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:02,611 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:02] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:05,614 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:05] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:08,600 [WARNING] server: [sync-info] contar_peers: bad parameter or other API misuse
+2026-10-14 00:18:08,601 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:08] "[35m[1mGET /api/status HTTP/1.1[0m" 500 -
+2026-10-14 00:18:08,602 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:08] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:08,614 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:08] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:11,618 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:11] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:14,602 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:14] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:14,623 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:14] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:17,627 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:17] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:18,603 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:18] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:18:18,607 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:18] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:18:20,604 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:20] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:20,630 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:20] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:21,481 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:21] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:21,734 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:21] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:18:22,286 [INFO] p2p: [P2P] peer 100.84.11.48:6001 com mais work — sincronizando
+[90m00:18:22[0m [96m[INFO ][0m Altura=1518 Peers=3 Relay=0 Mempool=0 UTXOs=1519 Sync=full/1518→3055 (49.69%) via 100.84.11.48 L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:18:23,636 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:23] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:26,609 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:26] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:26,637 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:26] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:28,598 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:28] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:18:29,650 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:29] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:32,612 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:32] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:32,647 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:32] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:35,648 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:35] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:38,608 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:38] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:18:38,616 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:38] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:18:38,619 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:38] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:38,653 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:38] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:41,659 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:41] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:41,777 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:41] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:18:42,092 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:42] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:18:42,209 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:42] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:44,617 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:44] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:44,662 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:44] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:47,667 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:47] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:48,602 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:48] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:18:50,624 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:50] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:50,669 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:50] "GET /api/miner/status HTTP/1.1" 200 -
+[90m00:18:52[0m [96m[INFO ][0m Altura=1518 Peers=3 Relay=0 Mempool=0 UTXOs=1519 Sync=full/1518→3055 (49.69%) via 100.84.11.48 L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:18:53,676 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:53] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:56,632 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:56] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:18:56,680 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:56] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:18:58,609 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:58] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:18:58,617 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:58] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:18:59,683 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:18:59] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:02,444 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:02] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:19:02,632 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:02] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:02,687 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:02] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:05,691 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:05] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:08,616 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:08] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:19:08,634 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:08] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:08,694 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:08] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:11,698 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:11] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:14,641 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:14] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:14,702 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:14] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:17,707 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:17] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:18,609 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:18] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:19:18,632 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:18] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:19:20,645 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:20] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:20,710 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:20] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:21,746 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:21] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:19:22,575 [INFO] p2p: [P2P] peer 100.84.11.48:6001 com mais work — sincronizando
+2026-10-14 00:19:22,848 [INFO] p2p: [Sync] 100.84.11.48:6001: 1518 -> 3055
+[90m00:19:22[0m [96m[INFO ][0m Altura=1518 Peers=3 Relay=0 Mempool=0 UTXOs=1519 Sync=full/1518→3055 (49.69%) via 100.84.11.48 L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:19:23,721 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:23] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:26,825 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:26] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:26,847 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:26] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:28,732 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:28] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:19:29,725 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:29] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:31,980 [INFO] p2p: [Sync] 100.84.11.48:6001: OK — +1537 blocos em 9404ms
+2026-10-14 00:19:32,650 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:32] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:32,728 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:32] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:35,734 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:35] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:38,613 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:38] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:19:38,633 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:38] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:19:38,653 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:38] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:38,734 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:38] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:41,741 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:41] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:41,747 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:41] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:19:44,659 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:44] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:44,743 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:44] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:47,750 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:47] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:48,636 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:48] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:19:50,667 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:50] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:50,750 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:50] "GET /api/miner/status HTTP/1.1" 200 -
+[90m00:19:52[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:19:53,755 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:53] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:56,668 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:56] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:19:56,759 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:56] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:19:58,617 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:58] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:19:58,638 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:58] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:19:59,767 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:19:59] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:02,504 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:02] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:20:02,669 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:02] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:02,767 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:02] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:05,771 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:05] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:08,646 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:08] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:20:08,674 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:08] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:08,776 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:08] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:11,778 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:11] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:14,678 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:14] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:14,782 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:14] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:17,788 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:17] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:18,620 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:18] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:20:18,655 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:18] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:20:20,684 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:20] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:20,790 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:20] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:21,743 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:21] "GET /api/latest HTTP/1.1" 200 -
+[90m00:20:23[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:20:23,795 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:23] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:26,687 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:26] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:26,802 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:26] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:28,652 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:28] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:20:29,802 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:29] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:32,691 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:32] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:32,808 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:32] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:35,812 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:35] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:38,628 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:38] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:20:38,655 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:38] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:20:38,695 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:38] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:38,818 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:38] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:41,769 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:41] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:20:41,818 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:41] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:44,700 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:44] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:44,825 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:44] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:47,825 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:47] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:48,657 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:48] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:20:50,703 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:50] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:50,834 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:50] "GET /api/miner/status HTTP/1.1" 200 -
+[90m00:20:53[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:20:53,844 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:53] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:56,704 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:56] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:20:56,840 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:56] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:20:58,629 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:58] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:20:58,665 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:58] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:20:59,843 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:20:59] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:02,565 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:02] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:21:02,712 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:02] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:02,852 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:02] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:05,850 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:05] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:08,668 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:08] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:21:08,715 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:08] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:08,853 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:08] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:11,861 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:11] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:14,719 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:14] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:14,862 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:14] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:17,867 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:17] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:18,630 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:18] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:21:18,669 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:18] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:21:20,721 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:20] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:20,869 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:20] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:21,768 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:21] "GET /api/latest HTTP/1.1" 200 -
+[90m00:21:23[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:21:23,875 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:23] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:26,725 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:26] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:26,877 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:26] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:28,673 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:28] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:21:29,884 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:29] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:32,732 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:32] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:32,885 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:32] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:35,889 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:35] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:38,634 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:38] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:21:38,678 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:38] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:21:38,735 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:38] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:38,895 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:38] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:41,901 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:41] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:42,625 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:42] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:21:44,737 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:44] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:44,901 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:44] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:47,906 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:47] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:48,683 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:48] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:21:50,741 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:50] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:50,909 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:50] "GET /api/miner/status HTTP/1.1" 200 -
+[90m00:21:53[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:21:53,917 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:53] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:56,748 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:56] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:21:56,918 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:56] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:21:58,640 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:58] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:21:58,685 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:58] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:21:59,921 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:21:59] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:02,616 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:02] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:22:02,750 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:02] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:02,925 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:02] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:05,931 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:05] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:08,690 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:08] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:22:08,753 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:08] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:08,934 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:08] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:11,939 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:11] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:14,758 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:14] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:14,944 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:14] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:17,952 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:17] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:18,645 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:18] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:22:18,696 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:18] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:22:20,764 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:20] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:20,952 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:20] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:21,792 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:21] "GET /api/latest HTTP/1.1" 200 -
+[90m00:22:23[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:22:23,956 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:23] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:26,770 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:26] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:26,960 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:26] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:28,702 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:28] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:22:29,963 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:29] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:32,771 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:32] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:32,971 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:32] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:35,970 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:35] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:38,651 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:38] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:22:38,703 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:38] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:22:38,777 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:38] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:38,973 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:38] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:41,783 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:41] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:22:41,981 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:41] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:44,780 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:44] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:44,988 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:44] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:47,988 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:47] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:48,706 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:48] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:22:50,787 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:50] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:50,991 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:50] "GET /api/miner/status HTTP/1.1" 200 -
+[90m00:22:53[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:22:53,996 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:53] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:56,786 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:56] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:22:57,003 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:57] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:22:58,652 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:58] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:22:58,709 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:22:58] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:23:00,003 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:00] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:02,691 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:02] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:23:02,791 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:02] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:03,006 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:03] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:06,012 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:06] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:08,718 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:08] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:23:08,794 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:08] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:09,016 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:09] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:12,020 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:12] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:14,803 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:14] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:15,023 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:15] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:18,027 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:18] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:18,655 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:18] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:23:18,718 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:18] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:23:20,806 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:20] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:21,035 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:21] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:21,821 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:21] "GET /api/latest HTTP/1.1" 200 -
+[90m00:23:24[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:23:24,037 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:24] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:26,806 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:26] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:27,039 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:27] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:28,724 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:28] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:23:30,042 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:30] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:32,811 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:32] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:33,047 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:33] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:36,053 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:36] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:38,670 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:38] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:23:38,726 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:38] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:23:38,814 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:38] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:39,053 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:39] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:41,802 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:41] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:23:42,058 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:42] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:44,820 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:44] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:45,061 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:45] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:48,069 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:48] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:48,729 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:48] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:23:50,821 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:50] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:51,078 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:51] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:54,073 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:54] "GET /api/miner/status HTTP/1.1" 200 -
+[90m00:23:54[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:23:56,825 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:56] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:23:57,081 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:57] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:23:58,664 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:58] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:23:58,736 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:23:58] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:24:00,084 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:00] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:02,720 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:02] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:24:02,830 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:02] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:24:03,087 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:03] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:06,089 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:06] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:08,739 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:08] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:24:08,837 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:08] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:24:09,093 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:09] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:12,098 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:12] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:14,837 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:14] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:24:15,102 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:15] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:18,105 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:18] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:18,671 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:18] "GET /api/portfolio/brn1xwqacmrwvmhyl7cz57ku6z3tgkng5ntk4pau54 HTTP/1.1" 200 -
+2026-10-14 00:24:18,747 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:18] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:24:20,841 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:20] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:24:21,109 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:21] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:21,789 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:21] "GET /api/latest HTTP/1.1" 200 -
+2026-10-14 00:24:24,114 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:24] "GET /api/miner/status HTTP/1.1" 200 -
+[90m00:24:24[0m [96m[INFO ][0m Altura=3055 Peers=3 Relay=0 Mempool=0 UTXOs=3056 Sync=full/3055→3055 (100.0%) L2[OPEN=0 DETECTED=0 RELEASED=0] Mongo=off
+2026-10-14 00:24:26,844 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:26] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:24:27,119 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:27] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:28,745 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:28] "GET /api/status HTTP/1.1" 200 -
+2026-10-14 00:24:30,122 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:30] "GET /api/miner/status HTTP/1.1" 200 -
+2026-10-14 00:24:32,851 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:32] "GET /api/sync-info HTTP/1.1" 200 -
+2026-10-14 00:24:33,125 [INFO] werkzeug: 127.0.0.1 - - [14/Oct/2026 00:24:33] "GET /api/miner/status HTTP/1.1" 200 -
+[90m00:24:34[0m [96m[INFO ][0m Encerrando...
+[90m00:24:34[0m [96m[INFO ][0m Encerrando serviços...
+2026-10-14 00:24:37,161 [INFO] rendezvous_mongo: RendezvousMongo encerrado
+2026-10-14 00:24:39,093 [INFO] mongo: Mongo client fechado
+2026-10-14 00:24:39,098 [INFO] explorer: encerrando explorer...
+2026-10-14 00:24:39,098 [INFO] mongo: Mongo client fechado
+2026-10-14 00:24:39,098 [INFO] server: encerrando server…
